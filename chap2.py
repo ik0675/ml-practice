@@ -5,6 +5,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import torch
+from torchvision import datasets, transforms
 from sklearn.datasets import fetch_openml
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import GridSearchCV
@@ -12,18 +14,24 @@ from scipy.ndimage import shift
 from sklearn.metrics import accuracy_score
 
 ########################### DATA LOAD ###########################
-# Load the dataset
-train_data = pd.read_csv("./mnist_train.csv")
-test_data = pd.read_csv("./mnist_test.csv")
 
-# Split features and labels
-X_train = train_data.iloc[:, 1:].values  # Features
-y_train = train_data.iloc[:, 0].values  # Labels
+# 1. Load MNIST Dataset Using PyTorch
+transform = transforms.Compose([
+    transforms.ToTensor(),               # Convert images to PyTorch tensors
+    transforms.Normalize((0.5,), (0.5,)) # Normalize pixel values to range [-1, 1]
+])
 
-X_test = test_data.iloc[:, 1:].values
-y_test = test_data.iloc[:, 0].values
+train_dataset = datasets.MNIST(root='./data', train=True, download=True, transform=transform)
+test_dataset = datasets.MNIST(root='./data', train=False, download=True, transform=transform)
 
-# Normalize pixel values to [0, 1]
+# Convert the dataset to numpy arrays for use with sklearn
+X_train = train_dataset.data.numpy().reshape(-1, 28 * 28)  # Flatten images
+y_train = train_dataset.targets.numpy()
+
+X_test = test_dataset.data.numpy().reshape(-1, 28 * 28)
+y_test = test_dataset.targets.numpy()
+
+# Normalize pixel values to [0, 1] for compatibility with sklearn
 X_train = X_train / 255.0
 X_test = X_test / 255.0
 
@@ -53,6 +61,7 @@ grid_srch.best_score_
 grid_srch.best_estimator_.fit(X_train, y_train)
 tuned_accuracy = grid_srch.score(X_test, y_test)
 # print(tuned_accuracy) # Reached over 97%
+# Base KNN Accuracy on Test Set: 0.9714
 
 ################################################    2    ################################################
 
@@ -68,19 +77,19 @@ shifted_image_up = shift_image(img, 0, -5)
 # shifted_image_left = shift_image(img, -5, 0)
 shifted_image_right = shift_image(img, 5, 0)
 
-plt.figure(figsize=(12, 3))
-plt.subplot(131)
-plt.title("Original", fontsize=15)
-plt.imshow(img.reshape(28, 28), interpolation="nearest", cmap="Greys")
+# plt.figure(figsize=(12, 3))
+# plt.subplot(131)
+# plt.title("Original", fontsize=15)
+# plt.imshow(img.reshape(28, 28), interpolation="nearest", cmap="Greys")
 
-plt.subplot(132)
-plt.title("Shifted up", fontsize=14)
-plt.imshow(shifted_image_up.reshape(28, 28), interpolation="nearest", cmap="Greys")
-plt.subplot(133)
+# plt.subplot(132)
+# plt.title("Shifted up", fontsize=14)
+# plt.imshow(shifted_image_up.reshape(28, 28), interpolation="nearest", cmap="Greys")
+# plt.subplot(133)
 
-plt.title("Shifted right", fontsize=14)
-plt.imshow(shifted_image_right.reshape(28, 28), interpolation="nearest", cmap="Greys")
-plt.show()
+# plt.title("Shifted right", fontsize=14)
+# plt.imshow(shifted_image_right.reshape(28, 28), interpolation="nearest", cmap="Greys")
+# plt.show()
 
 X_augmented_train = [image for image in X_train]
 y_augmented_train = [image for image in y_train]
@@ -89,14 +98,6 @@ for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
     for image, label in zip(X_train, y_train):
         X_augmented_train.append(shift_image(image, dx, dy))
         y_augmented_train.append(label)
-
-# X_augmented_train = [image for image in X_train[:10000]]
-# y_augmented_train = [label for label in y_train[:10000]]
-
-# for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-#     for image, label in zip(X_train[:10000], y_train[:10000]):
-#         X_augmented_train.append(shift_image(image, dx, dy))
-#         y_augmented_train.append(label)
 
 X_augmented_train = np.array(X_augmented_train)
 y_augmented_train = np.array(y_augmented_train)
@@ -112,3 +113,6 @@ knn_clf.fit(X_augmented_train, y_augmented_train)
 y_prediction = knn_clf.predict(X_test)
 score = accuracy_score(y_test, y_prediction)
 print("Accuracy score : ", score)
+
+
+# Augmented KNN Accuracy on Test Set: 0.9754
